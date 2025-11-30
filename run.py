@@ -114,14 +114,22 @@ def parse_args() -> int:
     return args.week_num
 
 
-def main():
-    """Generate the sharepic.
+def main() -> None:
+    """Generate the sharepics."""
+    current_week = parse_args()
+    preview(current_week)
+    scorecard(current_week - 1)
+
+
+def preview(week: int) -> None:
+    """Generate the game preview.
+
+    Args:
+        week: Week to generate the sharepic for.
 
     Raises:
         ValueError: If more than one game per week and team is found.
     """
-    current_week = parse_args()
-
     for team in YOUTH_TEAMS:
         team_age = team.lstrip("U")
 
@@ -131,7 +139,7 @@ def main():
         data["DATE"] = pd.to_datetime(data["DATE"], format=DATE_FMT)
 
         weeks = data["DATE"].dt.isocalendar().week
-        idx: pd.Series = weeks == current_week
+        idx: pd.Series = weeks == week
 
         if not idx.any():
             _empty_date(team_age)
@@ -160,12 +168,64 @@ def main():
             # name
             versus = OPPONENTS[versus]
 
-        _set_calendar_week(current_week)
+        _set_calendar_week(week)
         _set_date(date_str, team_age)
         _set_opponent(versus, where, team_age)
         _set_time(time_str, team_age)
 
-    TREE.write("modified.svg")
+    TREE.write("preview.svg")
+
+
+def scorecard(week: int) -> None:
+    """Generate the game preview.
+
+    Args:
+        week: Week to generate the sharepic for.
+
+    Raises:
+        ValueError: If more than one game per week and team is found.
+    """
+    for team in YOUTH_TEAMS:
+        team_age = team.lstrip("U")
+
+        data = pd.read_csv(
+            team.lower() + ".csv",
+        )
+        data["DATE"] = pd.to_datetime(data["DATE"], format=DATE_FMT)
+
+        weeks = data["DATE"].dt.isocalendar().week
+        idx: pd.Series = weeks == week
+
+        if not idx.any() or team in ("U9", "U11"):
+            # for U9 and U11, the is no result
+            _empty_date(team_age)
+            _empty_opponent(team_age)
+            _empty_time(team_age)
+            continue
+
+        try:
+            date_str: str = data[idx]["DATE"].item().strftime(DATE_FMT)
+            goals_str: str = data[idx]["GOALS"].item()
+            versus: str = data[idx]["VS"].item()
+        except ValueError as err:
+            raise ValueError(idx) from err
+
+        if versus.startswith("@ "):
+            where = "A"
+            versus = versus[2:]
+            goals_str = ":".join(reversed(goals_str.split(":")))
+        else:
+            where = "H"
+
+        # the oppenent is abbreviated, replace with full team name
+        versus = OPPONENTS[versus]
+
+        _set_calendar_week(week)
+        _set_date(date_str, team_age)
+        _set_opponent(versus, where, team_age)
+        _set_time(goals_str, team_age)
+
+    TREE.write("scores.svg")
 
 
 def _set_opponent(versus: str, where: str, age: str) -> None:
