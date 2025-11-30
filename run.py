@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
+"""EV Lindau Young Islanders Sharepic Generator."""
 
 import pandas as pd
 
 import xml.etree.ElementTree as ET
 
+import argparse
+import typing
 from teams import OPPONENTS
 
 DATE_FMT = "%d.%m.%Y"
@@ -14,90 +17,198 @@ YOUTH_TEAMS = ("U17", "U15", "U13", "U11", "U9")
 SEARCH_STR = ".//{{*}}text[@id='{field}{age}']"
 
 
-def set_opponent(versus: str, where: str, age: str) -> None:
+def get_max_week_of_year(year: int) -> int:
+    """Determine the maximum ISO week number (52 or 53) for a given year.
+
+    The ISO standard dictates that a year has 53 weeks if December 28th falls in week
+    53.
+
+    Args:
+        year (int): Year to find the maximum ISO week number.
+
+    Returns:
+        int: Max ISO week number.
+
+    """
+    # Use December 28th, which is always in the last week of the year to reliably find
+    # the maximum week number.
+    return pd.Timestamp(year=year, month=12, day=28).week
+
+
+CURRENT: pd.Timestamp = pd.Timestamp.now()
+MAX_WEEK = get_max_week_of_year(CURRENT.year)
+
+
+class ValidWeekNumber(argparse.Action):
+    """Validate the provided week number.
+
+    Rules:
+        1. Must be an integer.
+        2. Must be >= 1.
+        3. Must be <= the max week count of the current year.
+    """
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        value: typing.Any,
+        option_string: str | None = None,
+    ):
+        """Do the validation, baby.
+
+        Args:
+            parser (argparse.ArgumentParser): The ArgumentParser object which contains
+                this action.
+            namespace (argparse.Namespace): The Namespace object that will be returned
+                by parse_args().
+            value (int): The associated command-line argument.
+            option_string (str | None, optional): The option string that was used to
+                invoke this action. Defaults to None.
+
+        Raises:
+            argparse.ArgumentTypeError: If
+            argparse.ArgumentTypeError: _description_
+
+        """
+        try:
+            week_num = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(
+                f"'{value}' is not a valid integer for a week number."
+            )
+
+        if not (1 <= week_num <= MAX_WEEK):
+            msg = (
+                f"Invalid week number: {week_num}. "
+                f"The week number must be between 1 and {MAX_WEEK} "
+                f"(the maximum number of weeks in the current year, {CURRENT.year})."
+            )
+            raise argparse.ArgumentTypeError(msg)
+
+        # If validation passes, set the attribute in the namespace
+        setattr(namespace, self.dest, week_num)
+
+
+def parse_args() -> int:
+    """Set up and run the argument parser.
+
+    Returns:
+        int: Week to generate the sharepic for.
+    """
+    parser = argparse.ArgumentParser(description="Generate Young Islanders Sharepic.")
+
+    parser.add_argument(
+        "week_num",
+        action=ValidWeekNumber,
+        default=CURRENT.week,
+        nargs="?",
+        help=(
+            f"The week number (depending on the current year). For {CURRENT.year}, the "
+            f"valid range is 1 to {MAX_WEEK}. Defaults to {CURRENT.week}."
+        ),
+    )
+
+    args = parser.parse_args()
+
+    return args.week_num
+
+
+def main():
+    """Generate the sharepic.
+
+    Raises:
+        ValueError: If more than one game per week and team is found.
+    """
+    current_week = parse_args()
+
+    for team in YOUTH_TEAMS:
+        team_age = team.lstrip("U")
+
+        data = pd.read_csv(
+            team.lower() + ".csv",
+        )
+        data["DATE"] = pd.to_datetime(data["DATE"], format=DATE_FMT)
+
+        weeks = data["DATE"].dt.isocalendar().week
+        idx: pd.Series = weeks == current_week
+
+        if not idx.any():
+            _empty_date(team_age)
+            _empty_opponent(team_age)
+            _empty_time(team_age)
+            continue
+
+        try:
+            date_str: str = data[idx]["DATE"].item().strftime(DATE_FMT)
+            time_str: str = data[idx]["TIME"].item()
+            versus: str = data[idx]["VS"].item()
+        except ValueError as err:
+            raise ValueError(idx) from err
+
+        if versus.startswith("@ "):
+            where = "A"
+            versus = versus[2:]
+        else:
+            where = "H"
+
+        if team in ("U9", "U11"):
+            # for U9 and U11, the "versus" actually is the location where the team plays
+            where = ""
+        else:
+            # for the other teams, the oppenent is abbreviated, replace with full team
+            # name
+            versus = OPPONENTS[versus]
+
+        _set_calendar_week(current_week)
+        _set_date(date_str, team_age)
+        _set_opponent(versus, where, team_age)
+        _set_time(time_str, team_age)
+
+    TREE.write("modified.svg")
+
+
+def _set_opponent(versus: str, where: str, age: str) -> None:
     (t,) = ROOT.findall(SEARCH_STR.format(field="TEAM", age=age))
     (s,) = list(t)
     s.text = f"{versus}" + (f" [{where}]" if where else "")
 
 
-def set_date(date: str, age: str) -> None:
+def _set_date(date: str, age: str) -> None:
     (t,) = ROOT.findall(SEARCH_STR.format(field="DATE", age=age))
     (s,) = list(t)
     s.text = date
 
 
-def set_time(time: str, age: str) -> None:
+def _set_time(time: str, age: str) -> None:
     (t,) = ROOT.findall(SEARCH_STR.format(field="TIME", age=age))
     (s,) = list(t)
     s.text = time
 
 
-def set_calendar_week(week: int) -> None:
+def _set_calendar_week(week: int) -> None:
     (t,) = ROOT.findall(SEARCH_STR.format(field="CALENDAR_WEEK", age=""))
     (s,) = list(t)
     s.text = f"SPIELVORSCHAU KW {week}"
 
 
-def empty_opponent(age: str) -> None:
+def _empty_opponent(age: str) -> None:
     (t,) = ROOT.findall(SEARCH_STR.format(field="TEAM", age=age))
     (s,) = list(t)
     s.text = ""
 
 
-def empty_date(age: str) -> None:
+def _empty_date(age: str) -> None:
     (t,) = ROOT.findall(SEARCH_STR.format(field="DATE", age=age))
     (s,) = list(t)
     s.text = ""
 
 
-def empty_time(age: str) -> None:
+def _empty_time(age: str) -> None:
     (t,) = ROOT.findall(SEARCH_STR.format(field="TIME", age=age))
     (s,) = list(t)
     s.text = ""
 
 
-for team in YOUTH_TEAMS:
-    team_age = team.lstrip("U")
-
-    data = pd.read_csv(
-        team.lower() + ".csv",
-    )
-    data["DATE"] = pd.to_datetime(data["DATE"], format=DATE_FMT)
-
-    # current week could be pd.Timestamp.now().week
-    current_week = 48
-    weeks = data["DATE"].dt.isocalendar().week
-    idx: pd.Series = weeks == current_week
-
-    if not idx.any():
-        empty_date(team_age)
-        empty_opponent(team_age)
-        empty_time(team_age)
-        continue
-
-    try:
-        date_str: str = data[idx]["DATE"].item().strftime(DATE_FMT)
-        time_str: str = data[idx]["TIME"].item()
-        versus: str = data[idx]["VS"].item()
-    except ValueError as err:
-        raise ValueError(idx) from err
-
-    if versus.startswith("@ "):
-        where = "A"
-        versus = versus[2:]
-    else:
-        where = "H"
-
-    if team in ("U9", "U11"):
-        # for U9 and U11, the "versus" actually is the location where the team plays
-        where = ""
-    else:
-        # for the other teams, the oppenent is abbreviated, replace with full team nam
-        versus = OPPONENTS[versus]
-
-    set_calendar_week(current_week)
-    set_date(date_str, team_age)
-    set_opponent(versus, where, team_age)
-    set_time(time_str, team_age)
-
-TREE.write("modified.svg")
+if __name__ == "__main__":
+    main()
