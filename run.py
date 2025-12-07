@@ -162,7 +162,7 @@ def preview(
         try:
             date_str: str = data[idx][DATE_COL].item().strftime(DATE_FMT)
             time_str: str = data[idx][TIME_COL].item()
-            versus: str = data[idx]["Gegner"].item()
+            versus: str = data[idx][VS_COL].item()
         except ValueError as err:
             raise ValueError(idx) from err
 
