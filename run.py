@@ -179,7 +179,9 @@ def preview(
             # name
             versus = OPPONENTS[versus]
 
-        _set_calendar_week(week)
+        type_str = "SPIELVORSCHAU"
+
+        _set_calendar_week(type_str, week)
         _set_date(date_str, team_age)
         _set_opponent(versus, where, team_age)
         _set_time(time_str, team_age)
@@ -235,10 +237,12 @@ def scorecard(
         else:
             where = "H"
 
+        type_str = "SPIELERGEBNISSE"
+
         # the opponent is abbreviated, replace with full team name
         versus = OPPONENTS[versus]
 
-        _set_calendar_week(week)
+        _set_calendar_week(type_str, week)
         _set_date(date_str, team_age)
         _set_opponent(versus, where, team_age)
         _set_time(goals_str, team_age)
@@ -264,10 +268,10 @@ def _set_time(time: str, age: str) -> None:
     s.text = time
 
 
-def _set_calendar_week(week: int) -> None:
+def _set_calendar_week(type_str: str, week: int) -> None:
     (t,) = ROOT.findall(CSV_SEARCH_STR.format(field="CALENDAR_WEEK", age=""))
     (s,) = list(t)
-    s.text = f"SPIELVORSCHAU KW {week}"
+    s.text = f"{type_str} KW {week}"
 
 
 def _empty_opponent(age: str) -> None:
