@@ -176,7 +176,7 @@ def preview(
             # for U9 and U11, the "versus" actually is the location where the team plays
             where = ""
         else:
-            # for the other teams, the oppenent is abbreviated, replace with full team
+            # for the other teams, the opponent is abbreviated, replace with full team
             # name
             versus = OPPONENTS[versus]
 
@@ -236,7 +236,7 @@ def scorecard(
         else:
             where = "H"
 
-        # the oppenent is abbreviated, replace with full team name
+        # the opponent is abbreviated, replace with full team name
         versus = OPPONENTS[versus]
 
         _set_calendar_week(week)
