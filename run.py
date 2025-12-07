@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 import argparse
 import typing
 from teams import OPPONENTS
+from deb_scraper import deb_scraper
 
 DATE_FMT = "%d.%m.%Y"
 
@@ -15,6 +16,11 @@ TREE = ET.parse("template.svg")
 ROOT = TREE.getroot()
 CSV_SEARCH_STR = ".//{{*}}text[@id='{field}{age}']"
 YOUTH_TEAMS = ("U17", "U15", "U13", "U11", "U9")
+DEB_IDS = {"U17": (39231, 18560), "U15": (14783, 18748), "U13": (39458, 18778)}
+DATE_COL = "Datum"
+TIME_COL = "Zeit"
+VS_COL = "Gegner"
+GOALS_COL = "Spielstand"
 
 
 def get_max_week_of_year(year: int) -> int:
@@ -117,30 +123,36 @@ def parse_args() -> int:
 def main() -> None:
     """Generate the sharepics."""
     current_week = parse_args()
-    preview(current_week)
-    scorecard(current_week - 1)
+    with deb_scraper() as get_game_data:
+        preview(current_week, get_game_data)
+        scorecard(current_week - 1, get_game_data)
 
 
-def preview(week: int) -> None:
+def preview(
+    week: int, get_game_data: typing.Callable[[int, int], pd.DataFrame]
+) -> None:
     """Generate the game preview.
 
     Args:
-        week: Week to generate the sharepic for.
+        week (int): Week to generate the sharepic for.
+        get_game_data (Callable[[int, int], pd.DataFrame]): Function to get the game
+            data.
 
     Raises:
         ValueError: If more than one game per week and team is found.
     """
     for team in YOUTH_TEAMS:
-        team_age = team.lstrip("U")
-
-        data = pd.read_csv(
-            team.lower() + ".csv",
+        data = (
+            pd.read_csv(team.lower() + ".csv")
+            if team in ("U9", "U11")
+            else get_game_data(*DEB_IDS[team])
         )
-        data["DATE"] = pd.to_datetime(data["DATE"], format=DATE_FMT)
 
-        weeks = data["DATE"].dt.isocalendar().week
+        data[DATE_COL] = pd.to_datetime(data[DATE_COL], format=DATE_FMT)
+        weeks = data[DATE_COL].dt.isocalendar().week
         idx: pd.Series = weeks == week
 
+        team_age = team.lstrip("U")
         if not idx.any():
             _empty_date(team_age)
             _empty_opponent(team_age)
@@ -148,9 +160,9 @@ def preview(week: int) -> None:
             continue
 
         try:
-            date_str: str = data[idx]["DATE"].item().strftime(DATE_FMT)
-            time_str: str = data[idx]["TIME"].item()
-            versus: str = data[idx]["VS"].item()
+            date_str: str = data[idx][DATE_COL].item().strftime(DATE_FMT)
+            time_str: str = data[idx][TIME_COL].item()
+            versus: str = data[idx]["Gegner"].item()
         except ValueError as err:
             raise ValueError(idx) from err
 
@@ -176,24 +188,31 @@ def preview(week: int) -> None:
     TREE.write("preview.svg")
 
 
-def scorecard(week: int) -> None:
+def scorecard(
+    week: int, get_game_data: typing.Callable[[int, int], pd.DataFrame]
+) -> None:
     """Generate the game preview.
 
     Args:
-        week: Week to generate the sharepic for.
+        week (int): Week to generate the sharepic for.
+        get_game_data (Callable[[int, int], pd.DataFrame]): Function to get the game
+            data.
 
     Raises:
         ValueError: If more than one game per week and team is found.
     """
     for team in YOUTH_TEAMS:
+        data = (
+            pd.read_csv(team.lower() + ".csv")
+            if team in ("U9", "U11")
+            else get_game_data(*DEB_IDS[team])
+        )
+
         team_age = team.lstrip("U")
 
-        data = pd.read_csv(
-            team.lower() + ".csv",
-        )
-        data["DATE"] = pd.to_datetime(data["DATE"], format=DATE_FMT)
+        data[DATE_COL] = pd.to_datetime(data[DATE_COL], format=DATE_FMT)
 
-        weeks = data["DATE"].dt.isocalendar().week
+        weeks = data[DATE_COL].dt.isocalendar().week
         idx: pd.Series = weeks == week
 
         if not idx.any() or team in ("U9", "U11"):
@@ -204,9 +223,9 @@ def scorecard(week: int) -> None:
             continue
 
         try:
-            date_str: str = data[idx]["DATE"].item().strftime(DATE_FMT)
-            goals_str: str = data[idx]["GOALS"].item()
-            versus: str = data[idx]["VS"].item()
+            date_str: str = data[idx][DATE_COL].item().strftime(DATE_FMT)
+            goals_str: str = data[idx][GOALS_COL].item()
+            versus: str = data[idx][VS_COL].item()
         except ValueError as err:
             raise ValueError(idx) from err
 
