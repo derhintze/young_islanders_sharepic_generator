@@ -13,8 +13,8 @@ DATE_FMT = "%d.%m.%Y"
 
 TREE = ET.parse("template.svg")
 ROOT = TREE.getroot()
+CSV_SEARCH_STR = ".//{{*}}text[@id='{field}{age}']"
 YOUTH_TEAMS = ("U17", "U15", "U13", "U11", "U9")
-SEARCH_STR = ".//{{*}}text[@id='{field}{age}']"
 
 
 def get_max_week_of_year(year: int) -> int:
@@ -229,43 +229,43 @@ def scorecard(week: int) -> None:
 
 
 def _set_opponent(versus: str, where: str, age: str) -> None:
-    (t,) = ROOT.findall(SEARCH_STR.format(field="TEAM", age=age))
+    (t,) = ROOT.findall(CSV_SEARCH_STR.format(field="TEAM", age=age))
     (s,) = list(t)
     s.text = f"{versus}" + (f" [{where}]" if where else "")
 
 
 def _set_date(date: str, age: str) -> None:
-    (t,) = ROOT.findall(SEARCH_STR.format(field="DATE", age=age))
+    (t,) = ROOT.findall(CSV_SEARCH_STR.format(field="DATE", age=age))
     (s,) = list(t)
     s.text = date
 
 
 def _set_time(time: str, age: str) -> None:
-    (t,) = ROOT.findall(SEARCH_STR.format(field="TIME", age=age))
+    (t,) = ROOT.findall(CSV_SEARCH_STR.format(field="TIME", age=age))
     (s,) = list(t)
     s.text = time
 
 
 def _set_calendar_week(week: int) -> None:
-    (t,) = ROOT.findall(SEARCH_STR.format(field="CALENDAR_WEEK", age=""))
+    (t,) = ROOT.findall(CSV_SEARCH_STR.format(field="CALENDAR_WEEK", age=""))
     (s,) = list(t)
     s.text = f"SPIELVORSCHAU KW {week}"
 
 
 def _empty_opponent(age: str) -> None:
-    (t,) = ROOT.findall(SEARCH_STR.format(field="TEAM", age=age))
+    (t,) = ROOT.findall(CSV_SEARCH_STR.format(field="TEAM", age=age))
     (s,) = list(t)
     s.text = ""
 
 
 def _empty_date(age: str) -> None:
-    (t,) = ROOT.findall(SEARCH_STR.format(field="DATE", age=age))
+    (t,) = ROOT.findall(CSV_SEARCH_STR.format(field="DATE", age=age))
     (s,) = list(t)
     s.text = ""
 
 
 def _empty_time(age: str) -> None:
-    (t,) = ROOT.findall(SEARCH_STR.format(field="TIME", age=age))
+    (t,) = ROOT.findall(CSV_SEARCH_STR.format(field="TIME", age=age))
     (s,) = list(t)
     s.text = ""
 
