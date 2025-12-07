@@ -67,8 +67,8 @@ class ValidWeekNumber(argparse.Action):
                 invoke this action. Defaults to None.
 
         Raises:
-            argparse.ArgumentTypeError: If
-            argparse.ArgumentTypeError: _description_
+            argparse.ArgumentTypeError: Value provided cannot be parsed as integer.
+            argparse.ArgumentTypeError: Value is not a valid week number.
 
         """
         try:
