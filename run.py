@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 
 import argparse
 import typing
-from teams import OPPONENTS
+from teams import OPPONENTS, DEB_IDS
 from deb_scraper import deb_scraper
 
 DATE_FMT = "%d.%m.%Y"
@@ -16,7 +16,6 @@ TREE = ET.parse("template.svg")
 ROOT = TREE.getroot()
 CSV_SEARCH_STR = ".//{{*}}text[@id='{field}{age}']"
 YOUTH_TEAMS = ("U17", "U15", "U13", "U11", "U9")
-DEB_IDS = {"U17": (39231, 18560), "U15": (14783, 18748), "U13": (39458, 18778)}
 DATE_COL = "Datum"
 TIME_COL = "Zeit"
 VS_COL = "Gegner"
