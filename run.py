@@ -163,7 +163,8 @@ def preview(
             time_str: str = data[idx][TIME_COL].item()
             versus: str = data[idx][VS_COL].item()
         except ValueError as err:
-            raise ValueError(idx) from err
+            msg = f"Found {idx.sum()} games for {team}. Can only handle 1."
+            raise ValueError(msg) from err
 
         if versus.startswith("@ "):
             where = "A"
