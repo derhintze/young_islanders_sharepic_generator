@@ -13,6 +13,8 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.firefox import GeckoDriverManager
 
+import consts
+
 URL = "https://deb-online.live/team/?teamId={}&divisionId={}"
 XPATH_EXPRESSION = (
     "//div[contains(@class, '-hd-los-team-full-page-games')]"
@@ -48,7 +50,9 @@ def deb_scraper() -> Callable[[str], pd.DataFrame]:
             raise RuntimeError("Found more than 1 table to parse.")
 
         (data,) = dataframes
-        data["Datum"] = pd.to_datetime(data["Datum"], format="%d.%m.%Y")
+
+        # if games are cancelled, they've got invalid date strings, remove them
+        data = data.loc[data[consts.DATE_COL] != "n.n."]
 
         return data
 

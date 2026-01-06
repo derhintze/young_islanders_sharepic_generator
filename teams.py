@@ -1,7 +1,8 @@
 """The abbreviations used for other teams."""
 
-from deb_scraper import deb_scraper
 import pandas as pd
+
+from deb_scraper import deb_scraper
 
 DEB_IDS = {"U17": (39231, 18560), "U15": (14783, 18748), "U13": (39458, 18778)}
 

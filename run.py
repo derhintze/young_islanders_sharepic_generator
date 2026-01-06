@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """EV Lindau Young Islanders Sharepic Generator."""
 
-import pandas as pd
-
-import xml.etree.ElementTree as ET
-
 import argparse
 import typing
 import xml.etree.ElementTree as ET
@@ -17,16 +13,9 @@ from deb_scraper import deb_scraper
 from teams import DEB_IDS, OPPONENTS
 from template import SharepicGenerator
 
-DATE_FMT = "%d.%m.%Y"
-
 TREE = ET.parse("template.svg")
 ROOT = TREE.getroot()
 CSV_SEARCH_STR = ".//{{*}}text[@id='{field}{age}']"
-YOUTH_TEAMS = ("U17", "U15", "U13", "U11", "U9")
-DATE_COL = "Datum"
-TIME_COL = "Zeit"
-VS_COL = "Gegner"
-GOALS_COL = "Spielstand"
 
 
 def get_max_week_of_year(year: int) -> int:
@@ -130,8 +119,47 @@ def main() -> None:
     """Generate the sharepics."""
     current_week = parse_args()
     with deb_scraper() as get_game_data:
-        preview(current_week, get_game_data)
-        scorecard(current_week - 1, get_game_data)
+        _data = []
+        for team in consts.YOUTH_TEAMS:
+            _raw = (
+                pd.read_csv(team.lower() + ".csv")
+                if team in ("U9", "U11")
+                else get_game_data(*DEB_IDS[team])
+            )
+            _raw[consts.TEAMS_COL] = team
+            _data.append(_raw)
+
+    data = pd.concat(_data)
+    data[consts.DATE_COL] = pd.to_datetime(
+        data[consts.DATE_COL], format=consts.DATE_FMT
+    )
+    replace_opponent_abbrevs(data)
+
+    generator = SharepicGenerator(data, "SPIELVORSCHAU", current_week)
+    preview = generator()
+    preview.save(f"preview_{current_week}.jpg")
+
+    generator = SharepicGenerator(data, "SPIELERGEBNISSE", current_week - 1)
+    preview = generator(scores=True)
+    preview.save(f"scorecard_{current_week - 1}.jpg")
+
+
+def replace_opponent_abbrevs(data: pd.DataFrame) -> None:
+    """Replace abbreviated opponents and adds home/away indicator.
+
+    Doesn't operate on U9/U11 games, since they don't use abbreviated opponent names.
+
+    Args:
+        data (pd.DataFrame): Game data to modify.
+    """
+    mask = ~data[consts.TEAMS_COL].isin(["U9", "U11"])
+
+    def transform_vs(val):
+        where = "A" if val.startswith("@ ") else "H"
+        name = val[2:] if where == "A" else val
+        return f"{OPPONENTS[name]} [{where}]"
+
+    data.loc[mask, consts.VS_COL] = data.loc[mask, consts.VS_COL].apply(transform_vs)
 
 
 def preview(
@@ -143,19 +171,18 @@ def preview(
         week (int): Week to generate the sharepic for.
         get_game_data (Callable[[int, int], pd.DataFrame]): Function to get the game
             data.
-
-    Raises:
-        ValueError: If more than one game per week and team is found.
     """
-    for team in YOUTH_TEAMS:
+    for team in consts.YOUTH_TEAMS:
         data = (
             pd.read_csv(team.lower() + ".csv")
             if team in ("U9", "U11")
             else get_game_data(*DEB_IDS[team])
         )
 
-        data[DATE_COL] = pd.to_datetime(data[DATE_COL], format=DATE_FMT)
-        weeks = data[DATE_COL].dt.isocalendar().week
+        data[consts.DATE_COL] = pd.to_datetime(
+            data[consts.DATE_COL], format=consts.DATE_FMT
+        )
+        weeks = data[consts.DATE_COL].dt.isocalendar().week
         idx: pd.Series = weeks == week
 
         team_age = team.lstrip("U")
@@ -165,13 +192,17 @@ def preview(
             _empty_time(team_age)
             continue
 
-        try:
-            date_str: str = data[idx][DATE_COL].item().strftime(DATE_FMT)
-            time_str: str = data[idx][TIME_COL].item()
-            versus: str = data[idx][VS_COL].item()
-        except ValueError as err:
-            msg = f"Found {idx.sum()} games for {team}. Can only handle 1."
-            raise ValueError(msg) from err
+        if idx.sum() > 1:
+            msg = (
+                f"Found {idx.sum()} games for {team}. Can only handle 1. Using latest."
+            )
+            print(msg)
+
+        _data = data.loc[np.nonzero(idx)[0][-1]]
+
+        date_str: str = _data[consts.DATE_COL].strftime(consts.DATE_FMT)
+        time_str: str = _data[consts.TIME_COL]
+        versus: str = _data[consts.VS_COL]
 
         if versus.startswith("@ "):
             where = "A"
@@ -210,7 +241,7 @@ def scorecard(
     Raises:
         ValueError: If more than one game per week and team is found.
     """
-    for team in YOUTH_TEAMS:
+    for team in consts.YOUTH_TEAMS:
         data = (
             pd.read_csv(team.lower() + ".csv")
             if team in ("U9", "U11")
@@ -219,9 +250,11 @@ def scorecard(
 
         team_age = team.lstrip("U")
 
-        data[DATE_COL] = pd.to_datetime(data[DATE_COL], format=DATE_FMT)
+        data[consts.DATE_COL] = pd.to_datetime(
+            data[consts.DATE_COL], format=consts.DATE_FMT
+        )
 
-        weeks = data[DATE_COL].dt.isocalendar().week
+        weeks = data[consts.DATE_COL].dt.isocalendar().week
         idx: pd.Series = weeks == week
 
         if not idx.any() or team in ("U9", "U11"):
@@ -232,9 +265,9 @@ def scorecard(
             continue
 
         try:
-            date_str: str = data[idx][DATE_COL].item().strftime(DATE_FMT)
-            goals_str: str = data[idx][GOALS_COL].item()
-            versus: str = data[idx][VS_COL].item()
+            date_str: str = data[idx][consts.DATE_COL].item().strftime(consts.DATE_FMT)
+            goals_str: str = data[idx][consts.GOALS_COL].item()
+            versus: str = data[idx][consts.VS_COL].item()
         except ValueError as err:
             raise ValueError(idx) from err
 

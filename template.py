@@ -7,7 +7,10 @@ from dataclasses import dataclass
 
 import cairo
 import cairosvg
+import pandas as pd
 from PIL import Image, ImageEnhance, ImageFilter
+
+import consts
 
 _DRAW_DEBUG = False
 
@@ -104,18 +107,28 @@ class BoxOfRectangles:
 class SharepicGenerator:
     """Sharepic Generator using Cairo SVG."""
 
-    LOGO_WIDTH = 200  # px
+    LOGO_WIDTH = 200
+    VS_WIDTH = 80
 
-    def __init__(self, n_teams: int) -> None:
+    def __init__(self, game_data: pd.DataFrame, title: str, week: int) -> None:
         """Initialize the Sharepic Generator.
 
         Args:
-            n_teams (int): Number of teams to use for sharepic.
+            game_data (pd.DataFrame): Game data.
+            title (str): Title, which is actually some kind of subtitle, since the real
+                title is "YOUNG ISLANDERS".
+            week (int): Week to create sharepic for.
         """
+        self.game_data = game_data.loc[
+            game_data[consts.DATE_COL].dt.isocalendar().week == week
+        ].set_index(consts.TEAMS_COL)
+        n_teams = len(self.game_data.index.unique())
         self.type_scale = TypeScale(32, 1.2)
 
         self.surface = cairo.ImageSurface(cairo.Format.RGB24, WIDTH_PTS, HEIGHT_PTS)
         self.ctx = cairo.Context(self.surface)
+
+        self.vs_symbol = cairosvg.svg2png(url="vs.svg", output_width=self.VS_WIDTH)
 
         self._prepare_background()
 
@@ -126,7 +139,7 @@ class SharepicGenerator:
         self.ctx.select_font_face(
             "Industry", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL
         )
-        top_y = self._draw_headlines(calendar_week=45)
+        top_y = self._draw_headlines(title, calendar_week=week)
         bottom_y = 315 * MM_TO_UNITS
 
         if _DRAW_DEBUG:
@@ -165,7 +178,7 @@ class SharepicGenerator:
         self.ctx.set_source_surface(logo_surface, logo_x, logo_y)
         self.ctx.paint()
 
-    def _draw_headlines(self, calendar_week: int) -> float:
+    def _draw_headlines(self, title, calendar_week: int) -> float:
         text_content = "YOUNG ISLANDERS"
         self.ctx.set_font_size(self.type_scale.H1)
 
@@ -177,7 +190,7 @@ class SharepicGenerator:
         self.ctx.move_to(text_x, text_y)
         self.ctx.show_text(text_content)
 
-        text_content = f"SPIELVORSCHAU KW {calendar_week}"
+        text_content = f"{title} KW {calendar_week}"
         self.ctx.set_font_size(self.type_scale.H4)
         extents = self.ctx.text_extents(text_content)
         text_x = (WIDTH_PTS - extents.width) / 2
@@ -208,8 +221,12 @@ class SharepicGenerator:
         self.ctx.move_to(text_x, text_y)
         self.ctx.show_text(text_content)
 
-    def draw_frosted_rect(self, rect: Coordinate):
-        """Custom function to create a frosted glass effect."""
+    def draw_frosted_rect(self, rect: Coordinate) -> None:
+        """Custom function to create a frosted glass effect.
+
+        Args:
+            rect (Coordinate): Coordinate for rectangle.
+        """
         ctx = self.ctx
         x = rect.x_pos
         y = rect.y_pos
@@ -238,60 +255,154 @@ class SharepicGenerator:
         ctx.stroke()
         ctx.restore()
 
-    def create_svg(self) -> None:
-        """Create SVG with Cairo."""
-        self.ctx.set_source_rgb(*ISLANDERS_BLUE)
-        for rect in self.rectangles:
-            self.draw_frosted_rect(rect)
+    def draw_rect(self, rect: Coordinate) -> None:
+        """Draw a simple, white rectangle.
 
-            text_content = "U17"
-            self.ctx.set_font_size(self.type_scale.H3)
-            extents = self.ctx.text_extents(text_content)
-            text_x = 0.09 * WIDTH_PTS
-            text_y = rect.y_pos + BoxOfRectangles.RECT_H / 2 + extents.height / 2
-            self.ctx.move_to(text_x, text_y)
-            self.ctx.show_text(text_content)
+        Args:
+            rect (Coordinate): Coordinate for rectangle.
+        """
+        self.ctx.set_source_rgb(*WHITE)
+        self.ctx.rectangle(
+            rect.x_pos, rect.y_pos, BoxOfRectangles.RECT_W, BoxOfRectangles.RECT_H
+        )
+        self.ctx.fill()
 
-            text_content = "20.12.2025"
-            self.ctx.set_font_size(self.type_scale.BODY)
-            text_x += extents.width + 20
-            text_y -= (
-                extents.height / 2 - self.ctx.text_extents(text_content).height / 2
+    def __call__(self, scores: bool = False) -> None:
+        """Generate the sharepic.
+
+        Args:
+            scores (bool, optional): Whether to write scores instead of times. Defaults
+                to False.
+        """
+        for rect, team in zip(self.rectangles, self.game_data.index.unique()):
+            data = self.game_data.loc[[team]]
+            dates = data[consts.DATE_COL].dt.strftime(consts.DATE_FMT).to_list()
+            opponents = data[consts.VS_COL].to_list()
+            vals = data[consts.GOALS_COL if scores else consts.TIME_COL].to_list()
+            self.draw_rect(rect)
+
+            self._draw_vs(0.38 * WIDTH_PTS, rect.y_pos)
+
+            self.ctx.set_source_rgb(*ISLANDERS_BLUE)
+
+            self._write_text_at(
+                text_x=0.09 * WIDTH_PTS,
+                text_y=rect.y_pos,
+                text_content=team,
+                font_size=self.type_scale.H3,
             )
-            self.ctx.move_to(text_x, text_y)
-            self.ctx.show_text(text_content)
 
+            self._write_text_at(
+                text_x=0.2 * WIDTH_PTS,
+                text_y=rect.y_pos,
+                text_content=dates,
+                font_size=self.type_scale.BODY,
+            )
 
-def to_pil(surface: cairo.ImageSurface) -> Image:
-    """Convert Cairo image surface to PIL Image.
+            self._write_text_at(
+                text_x=0.475 * WIDTH_PTS,
+                text_y=rect.y_pos,
+                text_content=opponents,
+                font_size=self.type_scale.BODY,
+            )
 
-    Args:
-        surface (cairo.ImageSurface): Surface to convert.
+            if scores and team in ("U11", "U9"):
+                # no scores for them, sry
+                continue
 
-    Raises:
-        NotImplementedError: Raised for unknown Cairo formats.
+            lefts = []
+            rights = []
+            left_x_pos = []
+            x_pos = 0.86 * WIDTH_PTS
+            for val in vals:
+                self.ctx.set_font_size(self.type_scale.BODY)
 
-    Returns:
-        Image: PIL Image.
-    """
-    format = surface.get_format()
-    size = (surface.get_width(), surface.get_height())
-    stride = surface.get_stride()
+                colon_extents = self.ctx.text_extents(":")
+                right_x_pos = x_pos + colon_extents.x_advance
 
-    with surface.get_data() as memory:
-        if format == cairo.Format.RGB24:
+                left, right = val.split(":")
+                extents = self.ctx.text_extents(left)
+                lefts.append(left)
+                rights.append(right)
+                left_x_pos.append(x_pos - extents.x_advance)
+
+            self._write_text_at(
+                text_x=left_x_pos,
+                text_y=rect.y_pos,
+                text_content=lefts,
+                font_size=self.type_scale.BODY,
+            )
+            self._write_text_at(
+                text_x=x_pos,
+                text_y=rect.y_pos,
+                text_content=len(vals) * [":"],
+                font_size=self.type_scale.BODY,
+            )
+            self._write_text_at(
+                text_x=right_x_pos,
+                text_y=rect.y_pos,
+                text_content=rights,
+                font_size=self.type_scale.BODY,
+            )
+
+        return self.to_pil()
+
+    def _write_text_at(
+        self,
+        text_x: float | list[float],
+        text_y: float,
+        text_content: str | list[str],
+        font_size: float,
+    ) -> None:
+        if isinstance(text_content, str):
+            text_content = [text_content]
+
+        if isinstance(text_x, float):
+            text_x = len(text_content) * [text_x]
+
+        self.ctx.set_font_size(font_size)
+
+        ascent, descent, *_ = self.ctx.font_extents()
+        line_spacing = 13
+
+        single_line_height = ascent + descent
+        total_text_height = (len(text_content) * single_line_height) + (
+            (len(text_content) - 1) * line_spacing
+        )
+
+        start_y = text_y + (BoxOfRectangles.RECT_H - total_text_height) / 2
+
+        for i, (text, line_x) in enumerate(zip(text_content, text_x)):
+            line_y = start_y + (i * (single_line_height + line_spacing)) + ascent
+
+            self.ctx.move_to(line_x, line_y)
+            self.ctx.show_text(text)
+
+    def _draw_vs(self, x_pos: float, y_pos: float) -> None:
+        vs_surf = cairo.ImageSurface.create_from_png(io.BytesIO(self.vs_symbol))
+        self.ctx.set_source_surface(
+            vs_surf,
+            x_pos,
+            y_pos + BoxOfRectangles.RECT_H / 2 - vs_surf.get_height() / 2,
+        )
+        self.ctx.paint()
+
+    def to_pil(self) -> Image:
+        """Convert Cairo image surface to PIL Image.
+
+        Args:
+            surface (cairo.ImageSurface): Surface to convert.
+
+        Raises:
+            NotImplementedError: Raised for unknown Cairo formats.
+
+        Returns:
+            Image: PIL Image.
+        """
+        size = (self.surface.get_width(), self.surface.get_height())
+        stride = self.surface.get_stride()
+
+        with self.surface.get_data() as memory:
             return Image.frombuffer(
                 "RGB", size, memory.tobytes(), "raw", "BGRX", stride
             )
-        elif format == cairo.Format.ARGB32:
-            return Image.frombuffer(
-                "RGBA", size, memory.tobytes(), "raw", "BGRa", stride
-            )
-        else:
-            raise NotImplementedError(repr(format))
-
-
-if __name__ == "__main__":
-    generator = SharepicGenerator(3)
-    generator.create_svg()
-    to_pil(generator.surface).save("final_output.jpg")
