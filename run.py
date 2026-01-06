@@ -7,8 +7,15 @@ import xml.etree.ElementTree as ET
 
 import argparse
 import typing
-from teams import OPPONENTS, DEB_IDS
+import xml.etree.ElementTree as ET
+
+import numpy as np
+import pandas as pd
+
+import consts
 from deb_scraper import deb_scraper
+from teams import DEB_IDS, OPPONENTS
+from template import SharepicGenerator
 
 DATE_FMT = "%d.%m.%Y"
 

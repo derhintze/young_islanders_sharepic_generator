@@ -1,16 +1,17 @@
 """Get game data from DEB Online."""
 
+from contextlib import contextmanager
+from io import StringIO
+from typing import Callable
+
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.firefox.options import Options
-from webdriver_manager.firefox import GeckoDriverManager
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.support import expected_conditions
-from io import StringIO
-from contextlib import contextmanager
-from typing import Callable
+from selenium.webdriver.support.ui import WebDriverWait
+from webdriver_manager.firefox import GeckoDriverManager
 
 URL = "https://deb-online.live/team/?teamId={}&divisionId={}"
 XPATH_EXPRESSION = (

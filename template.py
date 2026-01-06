@@ -2,11 +2,12 @@
 
 """Create Sharepic with Cairo."""
 
-import cairo
-from PIL import Image, ImageFilter, ImageEnhance
 import io
-import cairosvg
 from dataclasses import dataclass
+
+import cairo
+import cairosvg
+from PIL import Image, ImageEnhance, ImageFilter
 
 _DRAW_DEBUG = False
 
