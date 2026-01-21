@@ -110,7 +110,9 @@ class SharepicGenerator:
     LOGO_WIDTH = 200
     VS_WIDTH = 80
 
-    def __init__(self, game_data: pd.DataFrame, title: str, week: int) -> None:
+    def __init__(
+        self, game_data: pd.DataFrame, title: str, week: int, scores: bool = False
+    ) -> None:
         """Initialize the Sharepic Generator.
 
         Args:
@@ -118,11 +120,13 @@ class SharepicGenerator:
             title (str): Title, which is actually some kind of subtitle, since the real
                 title is "YOUNG ISLANDERS".
             week (int): Week to create sharepic for.
+            scores (bool, optional): Whether to print scores instead of times.
         """
         self.game_data = game_data.loc[
             game_data[consts.DATE_COL].dt.isocalendar().week == week
         ].set_index(consts.TEAMS_COL)
-        n_teams = len(self.game_data.index.unique())
+        n_teams = len(set(self.game_data.index) - ({"U11", "U9"} if scores else set()))
+        self.scores = scores
         self.type_scale = TypeScale(32, 1.2)
 
         self.surface = cairo.ImageSurface(cairo.Format.RGB24, WIDTH_PTS, HEIGHT_PTS)
@@ -267,18 +271,16 @@ class SharepicGenerator:
         )
         self.ctx.fill()
 
-    def __call__(self, scores: bool = False) -> None:
-        """Generate the sharepic.
-
-        Args:
-            scores (bool, optional): Whether to write scores instead of times. Defaults
-                to False.
-        """
+    def __call__(self) -> None:
+        """Generate the sharepic."""
         for rect, team in zip(self.rectangles, self.game_data.index.unique()):
+            if self.scores and team in {"U11", "U9"}:
+                # no scores for them, sry
+                continue
             data = self.game_data.loc[[team]]
             dates = data[consts.DATE_COL].dt.strftime(consts.DATE_FMT).to_list()
             opponents = data[consts.VS_COL].to_list()
-            vals = data[consts.GOALS_COL if scores else consts.TIME_COL].to_list()
+            vals = data[consts.GOALS_COL if self.scores else consts.TIME_COL].to_list()
             self.draw_rect(rect)
 
             self._draw_vs(0.38 * WIDTH_PTS, rect.y_pos)
@@ -305,10 +307,6 @@ class SharepicGenerator:
                 text_content=opponents,
                 font_size=self.type_scale.BODY,
             )
-
-            if scores and team in ("U11", "U9"):
-                # no scores for them, sry
-                continue
 
             lefts = []
             rights = []

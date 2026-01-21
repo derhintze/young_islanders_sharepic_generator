@@ -139,8 +139,10 @@ def main() -> None:
     preview = generator()
     preview.save(f"preview_{current_week}.jpg")
 
-    generator = SharepicGenerator(data, "SPIELERGEBNISSE", current_week - 1)
-    preview = generator(scores=True)
+    generator = SharepicGenerator(
+        data, "SPIELERGEBNISSE", current_week - 1, scores=True
+    )
+    preview = generator()
     preview.save(f"scorecard_{current_week - 1}.jpg")
 
 
