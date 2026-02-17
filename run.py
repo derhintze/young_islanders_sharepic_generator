@@ -139,8 +139,13 @@ def main() -> None:
     preview = generator()
     preview.save(f"preview_{current_week}.jpg")
 
+    # to skip canceled games, skip them here (Unnamed 3 contains Win/Loss or NaN if not
+    # yet played - or canceled)
     generator = SharepicGenerator(
-        data, "SPIELERGEBNISSE", current_week - 1, scores=True
+        data.loc[~data["Unnamed: 5"].isna()],
+        "SPIELERGEBNISSE",
+        current_week - 1,
+        scores=True,
     )
     preview = generator()
     preview.save(f"scorecard_{current_week - 1}.jpg")
