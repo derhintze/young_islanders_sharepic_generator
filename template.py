@@ -127,6 +127,7 @@ class SharepicGenerator:
         ].set_index(consts.TEAMS_COL)
         n_teams = len(set(self.game_data.index) - ({"U11", "U9"} if scores else set()))
         self.scores = scores
+        self.week = week
         self.type_scale = TypeScale(32, 1.2)
 
         self.surface = cairo.ImageSurface(cairo.Format.RGB24, WIDTH_PTS, HEIGHT_PTS)
@@ -273,6 +274,8 @@ class SharepicGenerator:
 
     def __call__(self) -> None:
         """Generate the sharepic."""
+        if not self.scores:
+            print(f"Ausblick KW {self.week}: ", end="")
         for rect, team in zip(self.rectangles, self.game_data.index.unique()):
             if self.scores and team in {"U11", "U9"}:
                 # no scores for them, sry
@@ -281,6 +284,9 @@ class SharepicGenerator:
             dates = data[consts.DATE_COL].dt.strftime(consts.DATE_FMT).to_list()
             opponents = data[consts.VS_COL].to_list()
             vals = data[consts.GOALS_COL if self.scores else consts.TIME_COL].to_list()
+            if not self.scores:
+                for d, v, o in zip(dates, vals, opponents):
+                    print(team, ", ".join([d, v, o]), end="; ")
             self.draw_rect(rect)
 
             self._draw_vs(0.38 * WIDTH_PTS, rect.y_pos)
@@ -342,6 +348,9 @@ class SharepicGenerator:
                 text_content=rights,
                 font_size=self.type_scale.BODY,
             )
+
+        if not self.scores:
+            print()
 
         return self.to_pil()
 
