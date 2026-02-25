@@ -19,7 +19,7 @@ OPPONENTS = {
     "MEM": "ECDC Memmingen",
     "PEMI": "Peißenberg Miners",
     "PFR": "EV Pfronten",
-    "RBM2": "Rookie Bulls München II",
+    "RBM2": "RB München II",
     "SGGZ": "SG Götzens / Zirl",
     "SGLP2": "SG Lechbr. / Peiting II",
     "SGTBW": "SG Türkh. / Wörish.",
