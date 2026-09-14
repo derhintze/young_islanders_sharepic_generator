@@ -129,7 +129,7 @@ def main() -> None:
             _raw[consts.TEAMS_COL] = team
             _data.append(_raw)
 
-    data = pd.concat(_data)
+    data = pd.concat(_data, ignore_index=True)
     data[consts.DATE_COL] = pd.to_datetime(
         data[consts.DATE_COL], format=consts.DATE_FMT
     )

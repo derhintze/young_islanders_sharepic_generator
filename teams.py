@@ -4,14 +4,16 @@ import pandas as pd
 
 from deb_scraper import deb_scraper
 
-DEB_IDS = {"U17": (39231, 18560), "U15": (14783, 18748), "U13": (39458, 18778)}
+DEB_IDS = {"U20": (28219, 21932), "U15": (39264, 21725), "U13": (39458, 21846)}
 
 OPPONENTS = {
     "AIB": "EHC Bad Aibling",
     "BUC": "ESV Buchloe",
     "BWH": "Bad Wörishofen",
     "EAS": "TSV Schongau",
+    "ECP": "EC Peiting",
     "ERCL": "ERC Lechbruck",
+    "EVF": "EV Füssen",
     "EVK": "EV Königsbrunn",
     "FFB": "EV Fürstenfeldbruck",
     "HCL2": "HC Landsberg II",
@@ -19,12 +21,16 @@ OPPONENTS = {
     "MEM": "ECDC Memmingen",
     "PEMI": "Peißenberg Miners",
     "PFR": "EV Pfronten",
+    "RAV": "EV Ravensburg",
     "RBM2": "RB München II",
+    "RRG": "River Rats Geretsried",
+    "SEC": "Stuttgarter EC",
     "SGGZ": "SG Götzens / Zirl",
     "SGLP2": "SG Lechbr. / Peiting II",
     "SGTBW": "SG Türkh. / Wörish.",
     "SGUB": "SG Ulm / Burgau",
     "SON": "ERC Sonthofen",
+    "TEVM": "TEV Miesbach",
     "ULM": "VfE Ulm / Neu-Ulm",
 }
 
