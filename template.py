@@ -109,6 +109,7 @@ class SharepicGenerator:
 
     LOGO_WIDTH = 200
     VS_WIDTH = 80
+    FONT = "Industry"
 
     def __init__(
         self, game_data: pd.DataFrame, title: str, week: int, scores: bool = False
@@ -142,7 +143,7 @@ class SharepicGenerator:
 
         self._draw_logo()
         self.ctx.select_font_face(
-            "Industry", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL
+            self.FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL
         )
         top_y = self._draw_headlines(title, calendar_week=week)
         bottom_y = 315 * MM_TO_UNITS
