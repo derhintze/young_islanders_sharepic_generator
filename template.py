@@ -143,9 +143,12 @@ class SharepicGenerator:
 
         self._draw_logo()
         self.ctx.select_font_face(
-            self.FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL
+            self.FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD
         )
         top_y = self._draw_headlines(title, calendar_week=week)
+        self.ctx.select_font_face(
+            self.FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL
+        )
         bottom_y = 315 * MM_TO_UNITS
 
         if _DRAW_DEBUG:
