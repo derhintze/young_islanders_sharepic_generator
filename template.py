@@ -383,18 +383,15 @@ class SharepicGenerator:
         ascent, descent, *_ = self.ctx.font_extents()
         line_spacing = 13
 
-        single_line_height = ascent + descent
-        total_text_height = (len(text_content) * single_line_height) + (
-            (len(text_content) - 1) * line_spacing
-        )
+        single_line_height = ascent + descent + line_spacing
+        total_text_height = ascent + (len(text_content) - 1) * single_line_height
 
-        start_y = text_y + (BoxOfRectangles.RECT_H - total_text_height) / 2
-
+        start_y = text_y + (BoxOfRectangles.RECT_H - total_text_height) / 2 + ascent
+        current_y = start_y
         for i, (text, line_x) in enumerate(zip(text_content, text_x)):
-            line_y = start_y + (i * (single_line_height + line_spacing)) + ascent
-
-            self.ctx.move_to(line_x, line_y)
+            self.ctx.move_to(line_x, current_y)
             self.ctx.show_text(text)
+            current_y += single_line_height
 
     def _draw_vs(self, x_pos: float, y_pos: float) -> None:
         vs_surf = cairo.ImageSurface.create_from_png(io.BytesIO(self.vs_symbol))
