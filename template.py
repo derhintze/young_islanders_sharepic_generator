@@ -136,7 +136,7 @@ class SharepicGenerator:
 
         self.vs_symbol = cairosvg.svg2png(url="vs.svg", output_width=self.VS_WIDTH)
 
-        self._prepare_background()
+        self._prepare_overlay()
 
         self.ctx.set_source_rgb(*ISLANDERS_BLUE)
         self.ctx.paint()
@@ -163,14 +163,19 @@ class SharepicGenerator:
         enhancer = ImageEnhance.Brightness(background_image_to_blur)
         background_image_to_blur = enhancer.enhance(2)
 
-        def pil_to_cairo(pil_img):
-            buf = io.BytesIO()
-            pil_img.save(buf, format="PNG")
-            buf.seek(0)
-            return cairo.ImageSurface.create_from_png(buf)
+        self.bg_surface = self._pil_to_cairo(background_image)
+        self.blurred_surface = self._pil_to_cairo(background_image_to_blur)
 
-        self.bg_surface = pil_to_cairo(background_image)
-        self.blurred_surface = pil_to_cairo(background_image_to_blur)
+    def _prepare_overlay(self) -> None:
+        overlay_image: Image.Image = Image.open("sandlayer.jpg")
+        self.fg_surface = self._pil_to_cairo(overlay_image)
+
+    @staticmethod
+    def _pil_to_cairo(pil_img):
+        buf = io.BytesIO()
+        pil_img.save(buf, format="PNG")
+        buf.seek(0)
+        return cairo.ImageSurface.create_from_png(buf)
 
     def _draw_logo(self) -> None:
         logo_png_data = cairosvg.svg2png(
@@ -350,6 +355,8 @@ class SharepicGenerator:
                 font_size=self.type_scale.BODY,
             )
 
+        self._draw_overlay()
+
         if not self.scores:
             print()
 
@@ -394,6 +401,23 @@ class SharepicGenerator:
             y_pos + BoxOfRectangles.RECT_H / 2 - vs_surf.get_height() / 2,
         )
         self.ctx.paint()
+
+    def _draw_overlay(self) -> None:
+        # Save context state so we can safely revert changes later
+        self.ctx.save()
+
+        # Set the blend mode to MULTIPLY to texture/darken the underlying graphics
+        self.ctx.set_operator(cairo.OPERATOR_MULTIPLY)
+
+        # Set the overlay image as the source pattern
+        self.ctx.set_source_surface(self.fg_surface, 0, 0)
+
+        # Paint the source onto the context using 0.8 (80%) alpha/transparency.
+        # This ensures the sand structure overlays with the requested opacity.
+        self.ctx.paint_with_alpha(0.8)
+
+        # Restore the context to reset the operator back to the default (OVER)
+        self.ctx.restore()
 
     def to_pil(self) -> Image:
         """Convert Cairo image surface to PIL Image.
