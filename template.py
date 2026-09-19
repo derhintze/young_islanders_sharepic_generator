@@ -109,7 +109,7 @@ class SharepicGenerator:
 
     LOGO_WIDTH = 200
     VS_WIDTH = 80
-    FONT = "Industry"
+    FONT = "Rockwell Std"
 
     def __init__(
         self, game_data: pd.DataFrame, title: str, week: int, scores: bool = False
