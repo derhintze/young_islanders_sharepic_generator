@@ -346,6 +346,7 @@ class SharepicGenerator:
                 text_y=rect.y_pos,
                 text_content=team,
                 font_size=self.type_scale.H3,
+                bold_font=True,
             )
 
             self._write_text_at(
@@ -410,12 +411,19 @@ class SharepicGenerator:
         text_y: float,
         text_content: str | list[str],
         font_size: float,
+        bold_font: bool = False,
     ) -> None:
         if isinstance(text_content, str):
             text_content = [text_content]
 
         if isinstance(text_x, float):
             text_x = len(text_content) * [text_x]
+
+        self.ctx.save()
+        if bold_font:
+            self.ctx.select_font_face(
+                self.FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD
+            )
 
         self.ctx.set_font_size(font_size)
 
@@ -431,6 +439,8 @@ class SharepicGenerator:
             self.ctx.move_to(line_x, current_y)
             self.ctx.show_text(text)
             current_y += single_line_height
+
+        self.ctx.restore()
 
     def _draw_vs(self, x_pos: float, y_pos: float) -> None:
         vs_surf = cairo.ImageSurface.create_from_png(io.BytesIO(self.vs_symbol))
