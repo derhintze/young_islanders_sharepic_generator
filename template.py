@@ -224,16 +224,55 @@ class SharepicGenerator:
         self.ctx.stroke()
 
     def _draw_footer(self) -> None:
-        text_content = "www.young-islanders.com"
-        self.ctx.set_font_size(self.type_scale.CAPTION)
-
-        extents = self.ctx.text_extents(text_content)
-        text_x = (WIDTH_PTS - extents.width) / 2
-        text_y = 0.93 * HEIGHT_PTS
-
+        # 1. Banner
         self.ctx.set_source_rgb(*WHITE)
-        self.ctx.move_to(text_x, text_y)
+        current_y_pos = 0.8844 * HEIGHT_PTS
+        thin_line_height = 10
+        banner_y_positions = [current_y_pos]
+        for i, h in enumerate(f * thin_line_height for f in (1, 5, 1)):
+            self.ctx.rectangle(0, current_y_pos, WIDTH_PTS, h)
+            current_y_pos += h + thin_line_height
+            banner_y_positions.append(current_y_pos)
+        self.ctx.fill()
+
+        # 2. Logo
+        logo_surf = cairo.ImageSurface.create_from_png("50EVL.png")
+        orig_width = logo_surf.get_width()
+        orig_height = logo_surf.get_height()
+        target_height = 1.3 * (
+            banner_y_positions[-1] - banner_y_positions[0] + thin_line_height
+        )
+        scale_factor = target_height / orig_height
+        target_width = orig_width * scale_factor
+        self.ctx.save()
+        self.ctx.translate(
+            (WIDTH_PTS - target_width) / 2,
+            banner_y_positions[1] + (5 * thin_line_height - target_height) / 2,
+        )
+        self.ctx.scale(scale_factor, scale_factor)
+        self.ctx.set_source_surface(logo_surf, 0, 0)
+        self.ctx.paint()
+        self.ctx.restore()
+
+        # 3. Years
+        text_content = "2026"
+        self.ctx.set_font_size(self.type_scale.H3)
+        self.ctx.save()
+        self.ctx.select_font_face(
+            self.FONT, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD
+        )
+        self.ctx.set_source_rgb(*ISLANDERS_BLUE)
+        extents = self.ctx.text_extents(text_content)
+        text_y = banner_y_positions[1] + (5 * thin_line_height + extents.height) / 2
+        self.ctx.move_to(WIDTH_PTS / 2 + 1.2 * target_width / 2, text_y)
         self.ctx.show_text(text_content)
+        text_content = "1976"
+        extents = self.ctx.text_extents(text_content)
+        self.ctx.move_to(
+            WIDTH_PTS / 2 - 1.2 * target_width / 2 - extents.x_advance, text_y
+        )
+        self.ctx.show_text(text_content)
+        self.ctx.restore()
 
     def draw_frosted_rect(self, rect: Coordinate) -> None:
         """Custom function to create a frosted glass effect.
