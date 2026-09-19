@@ -138,7 +138,7 @@ class SharepicGenerator:
 
         self._prepare_background()
 
-        self.ctx.set_source_surface(self.bg_surface, 0, 0)
+        self.ctx.set_source_rgb(*ISLANDERS_BLUE)
         self.ctx.paint()
 
         self._draw_logo()
