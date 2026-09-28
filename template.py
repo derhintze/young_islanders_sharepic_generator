@@ -65,7 +65,7 @@ class BoxOfRectangles:
 
     RECT_H = 30.0 * MM_TO_UNITS
     RECT_W = (1 - 4 / 30) * WIDTH_PTS
-    H_PAD = 1 / 30 * WIDTH_PTS
+    H_PAD = 1 / 40 * WIDTH_PTS
 
     rectangles: list[Coordinate]
 
